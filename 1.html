@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Baby-led Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<style>
+  :root { --card: 255 255 255; --ink: 17 24 39; --muted: 107 114 128; }
+  html,body { height:100%; background: rgb(247 248 250); font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji"; color: rgb(var(--ink)); }
+  .glass { background: rgba(255,255,255,0.75); backdrop-filter: blur(8px); }
+  .shadow-soft { box-shadow: 0 10px 25px rgba(0,0,0,0.07), 0 2px 6px rgba(0,0,0,0.06); }
+  .badge { font-size:.75rem; line-height:1rem; border-radius:9999px; padding:.25rem .5rem; }
+  .handle { cursor:grab }
+  .handle:active { cursor:grabbing }
+  .pill { border-radius:9999px }
+  .tickbar { height: 28px; position: relative; }
+  .tickbar .tick { position:absolute; top:0; bottom:0; width:1px; background: rgba(0,0,0,0.08) }
+  .tickbar .label { position:absolute; top:14px; transform: translateX(-50%); font-size:10px; color: rgb(var(--muted)) }
+  .strike { text-decoration: line-through; opacity:.55 }
+  .danger-ring { outline: 2px solid rgba(220,38,38,.5); outline-offset: 2px; }
+  .ghost { opacity:.35 }
+  .draggable-ghost { opacity: .35; }
+</style>
+</head>
+<body>
+<!-- Onboarding / concept modal -->
+<div id="conceptModal" class="fixed inset-0 z-50 hidden">
+  <div class="absolute inset-0 bg-black/40" onclick="toggleConcept(false)"></div>
+  <div class="absolute inset-x-0 top-10 mx-auto max-w-2xl glass shadow-soft rounded-2xl p-6">
+    <div class="flex gap-3 items-start">
+      <div class="shrink-0 h-10 w-10 rounded-full bg-indigo-100 grid place-items-center text-indigo-700 font-bold">BL</div>
+      <div class="grow">
+        <h2 class="text-xl font-semibold mb-1">Baby-led Planner & “myological” time</h2>
+        <p class="text-sm text-gray-600 leading-relaxed">
+          New babies don’t care about clocks. Days stretch, shrink, repeat. This planner assumes your <em>baby determines your schedule</em>, so it focuses on <strong>tasks</strong> not timestamps. 
+          We show a <strong>Goal Day</strong> (your intentions) right next to a <strong>Real Day</strong> (what actually happened), and we build days from <strong>waking → sleeping</strong>, not midnight → midnight.
+        </p>
+        <p class="text-sm text-gray-600 mt-3 leading-relaxed">
+          The “time warp” feeling has a name you’ll hear as <em>myological</em>/<em>maialogical</em> time—loosely, <strong>time as lived</strong> rather than clocked hours. If you want a lovely 14-minute primer, listen to
+          <a class="text-indigo-700 underline" href="https://www.globalplayer.com/podcasts/episodes/7Drap3Y/" target="_blank" rel="noopener">Child — Episode 19: “Time Warp”</a>.
+        </p>
+      </div>
+      <button class="shrink-0 ml-2 rounded-xl px-3 py-2 bg-indigo-600 text-white text-sm" onclick="toggleConcept(false)">Got it</button>
+    </div>
+  </div>
+</div>
+
+<!-- Header -->
+<header class="sticky top-0 z-40 bg-white/80 backdrop-blur supports-backdrop-blur shadow-sm">
+  <div class="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
+    <div class="text-lg font-semibold tracking-tight">👶 Baby-led Planner</div>
+    <div class="ml-auto flex items-center gap-2">
+      <button class="px-3 py-1.5 text-sm rounded-lg bg-indigo-600 text-white" onclick="toggleConcept(true)">What is “myological time”?</button>
+      <button class="px-3 py-1.5 text-sm rounded-lg bg-gray-900 text-white" onclick="shareSnapshot()">Share read-only</button>
+      <button class="px-3 py-1.5 text-sm rounded-lg bg-gray-100" onclick="newDay()">New day</button>
+    </div>
+  </div>
+</header>
+
+<!-- Controls -->
+<section class="max-w-6xl mx-auto px-4 mt-4 grid md:grid-cols-3 gap-4">
+  <div class="glass shadow-soft rounded-2xl p-4">
+    <h3 class="font-semibold mb-2">Day framing</h3>
+    <div class="grid grid-cols-2 gap-3">
+      <label class="text-sm">Wake
+        <input id="wakeTime" type="time" class="w-full mt-1 rounded-lg border-gray-300" value="07:00" />
+      </label>
+      <label class="text-sm">Sleep
+        <input id="sleepTime" type="time" class="w-full mt-1 rounded-lg border-gray-300" value="20:00" />
+      </label>
+      <label class="col-span-2 text-sm flex items-center gap-2">
+        <input id="limitToWakeSleep" type="checkbox" class="rounded" checked />
+        Limit schedule between wake & sleep
+      </label>
+    </div>
+    <div class="mt-3 text-xs text-gray-500">Your “day” is calculated strictly from wake → sleep.</div>
+  </div>
+
+  <div class="glass shadow-soft rounded-2xl p-4">
+    <h3 class="font-semibold mb-2">Time visibility</h3>
+    <div class="flex items-center gap-2">
+      <select id="timeMode" class="rounded-lg border-gray-300">
+        <option value="none">No times</option>
+        <option value="limited">Limited (noon & midnight)</option>
+        <option value="all" selected>All times</option>
+      </select>
+      <label class="text-sm flex items-center gap-2 ml-2">
+        <input id="hideDurations" type="checkbox" class="rounded">
+        Hide durations
+      </label>
+    </div>
+    <div class="mt-3 text-xs text-gray-500">You can also mark “must-know” times below.</div>
+  </div>
+
+  <div class="glass shadow-soft rounded-2xl p-4">
+    <h3 class="font-semibold mb-2">Defaults</h3>
+    <div class="grid grid-cols-2 gap-3">
+      <label class="text-sm">Default buffer
+        <select id="defaultBuffer" class="w-full mt-1 rounded-lg border-gray-300">
+          <option value="0">0 min</option>
+          <option value="5" selected>5 min</option>
+          <option value="10">10 min</option>
+          <option value="15">15 min</option>
+          <option value="30">30 min</option>
+        </select>
+      </label>
+      <label class="text-sm">Warn overlap
+        <select id="overlapSensitivity" class="w-full mt-1 rounded-lg border-gray-300">
+          <option value="0">Off</option>
+          <option value="1" selected>Standard</option>
+          <option value="2">Strict</option>
+        </select>
+      </label>
+      <label class="text-sm col-span-2 flex items-center gap-2">
+        <input id="autoBuffersLeaving" type="checkbox" class="rounded" checked>
+        Add buffer before “leaving the house”
+      </label>
+    </div>
+  </div>
+</section>
+
+<!-- Critical times -->
+<section class="max-w-6xl mx-auto px-4 mt-4 grid md:grid-cols-3 gap-4">
+  <div class="md:col-span-2 glass shadow-soft rounded-2xl p-4">
+    <div class="flex items-center justify-between">
+      <h3 class="font-semibold">Must-know times (anchors)</h3>
+      <button class="px-3 py-1.5 text-sm rounded-lg bg-gray-900 text-white" onclick="openAnchorDialog()">Add anchor</button>
+    </div>
+    <div id="anchorList" class="mt-3 flex flex-wrap gap-2"></div>
+    <div class="tickbar mt-4 rounded-lg bg-white shadow-inner relative" id="tickbar"></div>
+    <div class="text-xs text-gray-500 mt-2">Anchors are hard constraints (e.g., nursery pickup, shop closing). Tasks can be set to “stick” to them.</div>
+  </div>
+  <div class="glass shadow-soft rounded-2xl p-4">
+    <h3 class="font-semibold mb-2">Quick-add routine</h3>
+    <div class="grid grid-cols-2 gap-2">
+      <button class="rounded-xl px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-800" onclick="quickAdd('Goal','Feed',30)">Feed (30m)</button>
+      <button class="rounded-xl px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-800" onclick="quickAdd('Goal','Nap',60)">Nap (1h)</button>
+      <button class="rounded-xl px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-800" onclick="quickAdd('Goal','Walk',40)">Walk (40m)</button>
+      <button class="rounded-xl px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-800" onclick="quickAdd('Goal','Play',45)">Play (45m)</button>
+      <button class="rounded-xl px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-800" onclick="quickAdd('Goal','Meal',30)">Meal (30m)</button>
+      <button class="rounded-xl px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-800" onclick="quickAdd('Goal','Bath',20)">Bath (20m)</button>
+    </div>
+    <div class="text-xs text-gray-500 mt-2">You can edit any item afterward.</div>
+  </div>
+</section>
+
+<!-- Main columns -->
+<main class="max-w-6xl mx-auto px-4 mt-4 grid md:grid-cols-2 gap-4">
+  <!-- Goal Day -->
+  <section class="glass shadow-soft rounded-2xl p-4">
+    <div class="flex items-center justify-between">
+      <h3 class="font-semibold">Goal Day</h3>
+      <div class="flex items-center gap-2">
+        <button class="px-3 py-1.5 text-sm rounded-lg bg-gray-100" onclick="openItemDialog('Goal')">Add task</button>
+        <button class="px-3 py-1.5 text-sm rounded-lg bg-gray-100" onclick="cloneToReal()">Plan → Real</button>
+      </div>
+    </div>
+    <ul id="goalList" class="mt-3 space-y-2 min-h-[3rem]"></ul>
+  </section>
+
+  <!-- Real Day -->
+  <section class="glass shadow-soft rounded-2xl p-4">
+    <div class="flex items-center justify-between">
+      <h3 class="font-semibold">Real Day</h3>
+      <div class="flex items-center gap-2">
+        <button class="px-3 py-1.5 text-sm rounded-lg bg-gray-100" onclick="openItemDialog('Real')">Add task</button>
+        <button class="px-3 py-1.5 text-sm rounded-lg bg-gray-100" onclick="recompute()">Recompute</button>
+      </div>
+    </div>
+    <ul id="realList" class="mt-3 space-y-2 min-h-[3rem]"></ul>
+    <div class="mt-3 text-sm">
+      <div class="font-medium">Availability (free blocks ≥ 30m)</div>
+      <ul id="freeList" class="text-gray-600 text-sm mt-1 space-y-1"></ul>
+    </div>
+  </section>
+</main>
+
+<!-- Baby logs / social style availability -->
+<section class="max-w-6xl mx-auto px-4 mt-4 grid md:grid-cols-2 gap-4 mb-16">
+  <div class="glass shadow-soft rounded-2xl p-4">
+    <div class="flex items-center justify-between">
+      <h3 class="font-semibold">Quick log (feeding / sleeping / changes)</h3>
+      <div class="flex gap-2">
+        <button class="px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-900" onclick="logEvent('Feed')">+ Feed</button>
+        <button class="px-3 py-1.5 rounded-lg bg-blue-100 text-blue-900" onclick="logEvent('Sleep')">+ Sleep</button>
+        <button class="px-3 py-1.5 rounded-lg bg-yellow-100 text-yellow-900" onclick="logEvent('Change')">+ Change</button>
+      </div>
+    </div>
+    <ul id="logList" class="mt-3 text-sm text-gray-700 space-y-1"></ul>
+  </div>
+
+  <div class="glass shadow-soft rounded-2xl p-4">
+    <h3 class="font-semibold mb-2">Share settings</h3>
+    <label class="text-sm flex items-center gap-2">
+      <input id="shareHideTimes" type="checkbox" class="rounded" checked>
+      Hide exact times in shared view (show only “free now / busy” bands)
+    </label>
+    <div class="text-xs text-gray-500 mt-2">
+      “Share read-only” copies a link to your clipboard. Anyone with it can see today’s Goal/Real and availability, but can’t edit.
+    </div>
+  </div>
+</section>
+
+<!-- Item dialog -->
+<div id="itemDialog" class="fixed inset-0 z-50 hidden">
+  <div class="absolute inset-0 bg-black/40" onclick="closeItemDialog()"></div>
+  <div class="absolute inset-x-0 top-10 mx-auto max-w-2xl glass shadow-soft rounded-2xl p-6">
+    <h3 id="itemDialogTitle" class="font-semibold mb-3">Add task</h3>
+    <div class="grid md:grid-cols-2 gap-4 text-sm">
+      <label>Title
+        <input id="fTitle" class="w-full mt-1 rounded-lg border-gray-300" placeholder="e.g., Nap, Feed, Walk" />
+      </label>
+      <label>Category
+        <select id="fCategory" class="w-full mt-1 rounded-lg border-gray-300">
+          <option>General</option><option>Feed</option><option>Nap</option><option>Play</option><option>Meal</option><option>Chore</option><option>Errand</option><option>Outing</option>
+        </select>
+      </label>
+      <div class="md:col-span-2 grid grid-cols-2 gap-4">
+        <label>Duration (minutes)
+          <input id="fDuration" type="number" min="0" class="w-full mt-1 rounded-lg border-gray-300" value="30" />
+        </label>
+        <label>Vague?
+          <select id="fVague" class="w-full mt-1 rounded-lg border-gray-300">
+            <option value="no" selected>Specific</option>
+            <option value="yes">Vague (±25%)</option>
+          </select>
+        </label>
+        <label>Buffer before (minutes)
+          <input id="fBuffer" type="number" min="0" class="w-full mt-1 rounded-lg border-gray-300" placeholder="Default" />
+        </label>
+        <label>Fixed time?
+          <input id="fFixed" type="time" class="w-full mt-1 rounded-lg border-gray-300" />
+        </label>
+      </div>
+      <label class="md:col-span-2">Notes
+        <textarea id="fNotes" class="w-full mt-1 rounded-lg border-gray-300" rows="2" placeholder="Optional"></textarea>
+      </label>
+    </div>
+    <div class="mt-4 flex items-center justify-between">
+      <button class="px-3 py-1.5 rounded-lg bg-gray-100" onclick="closeItemDialog()">Cancel</button>
+      <div class="flex gap-2">
+        <button id="deleteItemBtn" class="hidden px-3 py-1.5 rounded-lg bg-red-600 text-white" onclick="deleteCurrentItem()">Delete</button>
+        <button class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white" onclick="saveItem()">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Anchor dialog -->
+<div id="anchorDialog" class="fixed inset-0 z-50 hidden">
+  <div class="absolute inset-0 bg-black/40" onclick="closeAnchorDialog()"></div>
+  <div class="absolute inset-x-0 top-10 mx-auto max-w-xl glass shadow-soft rounded-2xl p-6">
+    <h3 class="font-semibold mb-3">Add must-know time</h3>
+    <div class="grid md:grid-cols-2 gap-4 text-sm">
+      <label>Label
+        <input id="aLabel" class="w-full mt-1 rounded-lg border-gray-300" placeholder="e.g., Nursery pickup" />
+      </label>
+      <label>Time
+        <input id="aTime" type="time" class="w-full mt-1 rounded-lg border-gray-300" value="15:00" />
+      </label>
+      <label class="md:col-span-2 flex items-center gap-2">
+        <input id="aPin" type="checkbox" class="rounded" />
+        Pin tasks with same label to this time (fixed)
+      </label>
+    </div>
+    <div class="mt-4 flex items-center justify-between">
+      <button class="px-3 py-1.5 rounded-lg bg-gray-100" onclick="closeAnchorDialog()">Cancel</button>
+      <button class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white" onclick="saveAnchor()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ----------------- State ----------------- */
+const state = {
+  goal: [],         // array of items
+  real: [],         // array of items
+  anchors: [],      // {id,label,time, pin}
+  logs: [],
+  editing: null,    // {list:'Goal'|'Real', id}
+  shareVersion: 1,
+};
+
+const els = {
+  goalList: () => document.getElementById('goalList'),
+  realList: () => document.getElementById('realList'),
+  freeList: () => document.getElementById('freeList'),
+  tickbar: () => document.getElementById('tickbar'),
+  anchorList: () => document.getElementById('anchorList'),
+  timeMode: () => document.getElementById('timeMode'),
+  hideDurations: () => document.getElementById('hideDurations'),
+  defaultBuffer: () => document.getElementById('defaultBuffer'),
+  overlapSensitivity: () => document.getElementById('overlapSensitivity'),
+  autoBuffersLeaving: () => document.getElementById('autoBuffersLeaving'),
+  wakeTime: () => document.getElementById('wakeTime'),
+  sleepTime: () => document.getElementById('sleepTime'),
+  limitToWakeSleep: () => document.getElementById('limitToWakeSleep'),
+  shareHideTimes: () => document.getElementById('shareHideTimes'),
+};
+
+/* ------------- Utilities ------------- */
+const uid = () => Math.random().toString(36).slice(2,9);
+const clamp = (n,min,max)=>Math.max(min,Math.min(max,n));
+const toMin = t => { if(!t) return null; const [h,m]=t.split(':').map(Number); return h*60+m; };
+const toHHMM = m => {
+  m = ((m%1440)+1440)%1440;
+  const h = Math.floor(m/60), mm = m%60;
+  return `${String(h).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+};
+const todayKey = () => new Date().toISOString().slice(0,10);
+
+/* ------------- Persistence ------------- */
+function save() {
+  const blob = {
+    v:2,
+    key: todayKey(),
+    state,
+    settings: {
+      wake: els.wakeTime().value,
+      sleep: els.sleepTime().value,
+      limit: els.limitToWakeSleep().checked,
+      timeMode: els.timeMode().value,
+      hideDurations: els.hideDurations().checked,
+      defaultBuffer: els.defaultBuffer().value,
+      overlapSensitivity: els.overlapSensitivity().value,
+      autoBuffersLeaving: els.autoBuffersLeaving().checked,
+      shareHideTimes: els.shareHideTimes().checked,
+    }
+  };
+  localStorage.setItem('baby-led', JSON.stringify(blob));
+}
+function load() {
+  // Shared snapshot?
+  if(location.hash.startsWith('#share=')) {
+    try {
+      const json = atob(decodeURIComponent(location.hash.slice(7)));
+      const snap = JSON.parse(json);
+      if(snap.v===state.shareVersion) {
+        Object.assign(state, snap.state);
+        applySharedSettings(snap.settings || {});
+        renderAll(true /*readOnly*/);
+        alert('Loaded shared read-only view. Editing disabled.');
+        return;
+      }
+    } catch(e){}
+  }
+
+  const raw = localStorage.getItem('baby-led');
+  if(!raw) {
+    // Seed with examples
+    const w = '07:00', s='20:00';
+    els.wakeTime().value = w; els.sleepTime().value = s;
+    state.anchors = [
+      {id:uid(), label:'Nursery pickup', time: toMin('15:00'), pin:false},
+      {id:uid(), label:'Shop closes', time: toMin('17:30'), pin:false},
+    ];
+    state.goal = [
+      mkItem('Feed', 30, 'Feed'),
+      mkItem('Nap', 60, 'Nap'),
+      mkItem('Play', 45, 'Play'),
+      mkItem('Errand: chemist (stick to “Shop closes”)', 25, 'Errand', null, null, 'Shop closes'),
+    ];
+    cloneToReal(false);
+    renderAll();
+    toggleConcept(true);
+    save();
+    return;
+  }
+  try {
+    const blob = JSON.parse(raw);
+    if(blob.settings) {
+      els.wakeTime().value = blob.settings.wake || '07:00';
+      els.sleepTime().value = blob.settings.sleep || '20:00';
+      els.limitToWakeSleep().checked = !!blob.settings.limit;
+      els.timeMode().value = blob.settings.timeMode || 'all';
+      els.hideDurations().checked = !!blob.settings.hideDurations;
+      els.defaultBuffer().value = blob.settings.defaultBuffer || '5';
+      els.overlapSensitivity().value = blob.settings.overlapSensitivity || '1';
+      els.autoBuffersLeaving().checked = !!blob.settings.autoBuffersLeaving;
+      els.shareHideTimes().checked = blob.settings.shareHideTimes ?? true;
+    }
+    Object.assign(state, blob.state || state);
+    renderAll();
+  } catch(e) { console.warn(e); }
+}
+function applySharedSettings(s) {
+  els.timeMode().value = (s.hideTimes || false) ? 'none' : (s.timeMode || 'limited');
+  els.hideDurations().checked = true;
+  document.querySelectorAll('button, input, select, textarea').forEach(el=>{
+    if(!el.closest('#conceptModal')) el.disabled = true;
+  });
+}
+
+/* ------------- Item & Anchor factory ------------- */
+function mkItem(title, duration=30, category='General', fixed=null, buffer=null, pinLabel=null) {
+  return { id:uid(), title, category,
+    duration: Number(duration)||0, vague: false,
+    buffer: (buffer==null?null:Number(buffer)),
+    fixed: fixed? toMin(fixed) : null,
+    pinLabel: pinLabel||null,
+    notes:'', done:false
+  };
+}
+
+/* ------------- Rendering ------------- */
+function renderAll(readOnly=false) {
+  drawTickbar();
+  drawAnchors();
+  drawList('Goal', state.goal, readOnly);
+  recompute(); // also draws real, free blocks
+  drawLogs();
+  save();
+}
+function drawTickbar() {
+  const el = els.tickbar();
+  el.innerHTML='';
+  const mode = els.timeMode().value;
+  if(mode==='none') return;
+  const w = el.clientWidth || el.offsetWidth || 600;
