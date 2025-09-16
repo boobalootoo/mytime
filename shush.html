@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shusher Site</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #121212;
+            --text-color: #f0f0f0;
+            --control-bg: #222;
+            --button-color: #4a4a4a;
+            --accent-color: #8A2BE2;
+            --slider-track: #3a3a3a;
+            --slider-thumb: var(--accent-color);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            text-align: center;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 600px;
+            background: var(--control-bg);
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            margin: 20px;
+        }
+
+        h1 {
+            font-size: 2em;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        p {
+            font-size: 1em;
+            font-weight: 300;
+            opacity: 0.8;
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .main-controls {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .play-button {
+            width: 80px;
+            height: 80px;
+            background: var(--accent-color);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            font-size: 2.5em;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .play-button:hover {
+            background: #a55ee8;
+            transform: scale(1.05);
+        }
+
+        .play-button:active {
+            transform: scale(0.95);
+        }
+
+        .download-button {
+            background: var(--button-color);
+            color: var(--text-color);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .download-button:hover {
+            background: #5e5e5e;
+        }
+        
+        .master-volume {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .master-volume input[type="range"] {
+            width: 100%;
+        }
+
+        .presets {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .preset-button {
+            background: var(--button-color);
+            color: var(--text-color);
+            border: none;
+            padding: 15px 10px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2);
+            font-weight: 400;
+            text-transform: capitalize;
+        }
+
+        .preset-button:hover {
+            background: #5e5e5e;
+            transform: translateY(-2px);
+        }
+
+        .preset-button.active {
+            background: var(--accent-color);
+            color: white;
+        }
+
+        .custom-mix {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .sound-control {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .sound-control label {
+            width: 80px;
+            text-align: left;
+            text-transform: capitalize;
+        }
+        
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 10px;
+            background: var(--slider-track);
+            border-radius: 5px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--slider-thumb);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--slider-thumb);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .footer {
+            margin-top: 20px;
+            font-size: 0.8em;
+            opacity: 0.6;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Audio Mixer</h1>
+        <p>Listen, customize, and mix your own soothing sounds.</p>
+        
+        <div class="main-controls">
+            <button id="playPauseBtn" class="play-button">&#9654;</button>
+        </div>
+        
+        <div class="master-volume">
+            <label for="masterVolume">Master Volume</label>
+            <input type="range" id="masterVolume" min="0" max="1" step="0.01" value="0.7">
+        </div>
+
+        <div class="presets" id="presets">
+            <!-- Preset buttons will be inserted here by JavaScript -->
+        </div>
+
+        <div class="custom-mix" id="soundControls">
+            <!-- Sound controls will be inserted here by JavaScript -->
+        </div>
+
+        <button id="downloadBtn" class="download-button">Download Current Mix</button>
+
+        <div id="messageBox" class="footer"></div>
+    </div>
+    
+    <script>
+        // Web Audio API and Wake Lock variables
+        let audioContext;
+        let isPlaying = false;
+        let masterGainNode;
+        let sources = {};
+        let mediaRecorder;
+        let recordedChunks = [];
+        let wakeLock = null;
+
+        const presets = {
+            'shush': {
+                'shush': 0.8,
+            },
+            'white noise': {
+                'whiteNoise': 0.7,
+            },
+            'ocean': {
+                'whiteNoise': 0.3,
+                'wind': 0.6,
+                'static': 0.2,
+                'shush': 0.1
+            },
+            'wind': {
+                'wind': 0.7,
+                'whiteNoise': 0.3,
+            },
+            'om': {
+                'hum': 0.8,
+            },
+            'static': {
+                'static': 0.8,
+                'whiteNoise': 0.4
+            },
+            'hum': {
+                'hum': 0.8,
+            },
+            'fan': {
+                'fan': 0.8,
+                'whiteNoise': 0.4
+            }
+        };
+
+        const soundTypes = ['shush', 'whiteNoise', 'wind', 'static', 'hum', 'fan'];
+
+        // DOM Elements
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const masterVolumeSlider = document.getElementById('masterVolume');
+        const presetsContainer = document.getElementById('presets');
+        const soundControlsContainer = document.getElementById('soundControls');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const messageBox = document.getElementById('messageBox');
+
+        // Main Functions
+        async function initializeAudio() {
+            try {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    masterGainNode = audioContext.createGain();
+                    masterGainNode.connect(audioContext.destination);
+
+                    // Create all sound sources initially
+                    soundTypes.forEach(type => {
+                        sources[type] = createSoundSource(type);
+                        sources[type].node.connect(masterGainNode);
+                    });
+                }
+
+                if (audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                }
+
+                // Request wake lock
+                await requestWakeLock();
+            } catch (e) {
+                showMessage(`Web Audio API is not supported in this browser.`, true);
+            }
+        }
+
+        async function requestWakeLock() {
+            if ('WakeLock' in window && 'request' in window.WakeLock) {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    console.log('Wake Lock is active!');
+                } catch (err) {
+                    console.error('Could not acquire wake lock:', err);
+                }
+            } else {
+                console.log('Wake Lock API is not supported.');
+            }
+        }
+
+        function createSoundSource(type) {
+            let node;
+            const gainNode = audioContext.createGain();
+            gainNode.gain.value = 0; // Start with zero volume
+
+            switch(type) {
+                case 'whiteNoise':
+                case 'shush':
+                case 'static':
+                    const bufferSize = audioContext.sampleRate * 2; // 2 seconds of noise
+                    const noiseBuffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+                    const output = noiseBuffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        output[i] = Math.random() * 2 - 1;
+                    }
+                    node = audioContext.createBufferSource();
+                    node.buffer = noiseBuffer;
+                    node.loop = true;
+                    node.start();
+
+                    if (type === 'shush') {
+                        const filter = audioContext.createBiquadFilter();
+                        filter.type = "bandpass";
+                        filter.frequency.value = 1000;
+                        filter.Q.value = 1;
+                        node.connect(filter);
+                        filter.connect(gainNode);
+                        return { node, gainNode, filter };
+                    }
+                    if (type === 'static') {
+                         const filter = audioContext.createBiquadFilter();
+                         filter.type = "bandpass";
+                         filter.frequency.value = 2500;
+                         filter.Q.value = 0.5;
+                         node.connect(filter);
+                         filter.connect(gainNode);
+                         return { node, gainNode, filter };
+                    }
+                    break;
+                case 'hum':
+                    node = audioContext.createOscillator();
+                    node.type = 'sine';
+                    node.frequency.value = 100;
+                    node.start();
+                    break;
+                case 'wind':
+                    // Layered wind effect
+                    const windNoise = audioContext.createBufferSource();
+                    const noiseBufferWind = audioContext.createBuffer(1, audioContext.sampleRate * 5, audioContext.sampleRate);
+                    const outputWind = noiseBufferWind.getChannelData(0);
+                    for (let i = 0; i < noiseBufferWind.length; i++) {
+                        outputWind[i] = Math.random() * 2 - 1;
+                    }
+                    windNoise.buffer = noiseBufferWind;
+                    windNoise.loop = true;
+                    windNoise.start();
+
+                    const filter = audioContext.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.value = 400;
+
+                    const lfo = audioContext.createOscillator();
+                    lfo.type = 'sine';
+                    lfo.frequency.value = 0.2; // Very slow
+                    const lfoGain = audioContext.createGain();
+                    lfoGain.gain.value = 150;
+                    lfo.connect(lfoGain);
+                    lfoGain.connect(filter.frequency);
+                    lfo.start();
+
+                    windNoise.connect(filter);
+                    filter.connect(gainNode);
+                    return { node: windNoise, gainNode, filter, lfo, lfoGain };
+                case 'fan':
+                    node = audioContext.createOscillator();
+                    node.type = 'sawtooth';
+                    node.frequency.value = 60;
+                    node.start();
+                    break;
+                default:
+                    return;
+            }
+            node.connect(gainNode);
+            return { node, gainNode };
+        }
+
+        function setVolume(sourceType, volume) {
+            if (sources[sourceType]) {
+                sources[sourceType].gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+            }
+        }
+
+        function updateUI(currentVolumes) {
+            // Update sliders
+            soundTypes.forEach(type => {
+                const slider = document.getElementById(`slider-${type}`);
+                if (slider) {
+                    slider.value = currentVolumes[type] || 0;
+                }
+            });
+
+            // Update preset button state
+            const presetButtons = presetsContainer.querySelectorAll('.preset-button');
+            presetButtons.forEach(btn => btn.classList.remove('active'));
+            let activePreset = null;
+            for (const presetName in presets) {
+                const presetValues = presets[presetName];
+                const allMatch = Object.keys(currentVolumes).every(key =>
+                    (currentVolumes[key] === (presetValues[key] || 0))
+                );
+                if (allMatch) {
+                    activePreset = presetName;
+                    break;
+                }
+            }
+
+            if (activePreset) {
+                document.getElementById(`preset-${activePreset.replace(/\s/g, '')}`).classList.add('active');
+            }
+        }
+
+        function showMessage(message, isError = false) {
+            messageBox.textContent = message;
+            messageBox.style.color = isError ? '#FF6B6B' : '#7FFF8A';
+            messageBox.style.opacity = 1;
+            setTimeout(() => {
+                messageBox.style.opacity = 0.6;
+            }, 5000);
+        }
+
+        // Event Listeners
+        window.addEventListener('load', () => {
+            // Create preset buttons
+            for (const name in presets) {
+                const button = document.createElement('button');
+                button.textContent = name;
+                button.classList.add('preset-button');
+                button.id = `preset-${name.replace(/\s/g, '')}`;
+                button.addEventListener('click', () => {
+                    if (!audioContext) initializeAudio();
+                    const preset = presets[name];
+                    const currentVolumes = {};
+                    soundTypes.forEach(type => {
+                        const volume = preset[type] || 0;
+                        setVolume(type, volume);
+                        currentVolumes[type] = volume;
+                    });
+                    updateUI(currentVolumes);
+                    if (!isPlaying) togglePlayback();
+                });
+                presetsContainer.appendChild(button);
+            }
+
+            // Create sound control sliders
+            soundTypes.forEach(type => {
+                const controlDiv = document.createElement('div');
+                controlDiv.classList.add('sound-control');
+                controlDiv.innerHTML = `
+                    <label for="slider-${type}">${type}</label>
+                    <input type="range" id="slider-${type}" min="0" max="1" step="0.01" value="0">
+                `;
+                soundControlsContainer.appendChild(controlDiv);
+
+                const slider = document.getElementById(`slider-${type}`);
+                slider.addEventListener('input', (e) => {
+                    if (!audioContext) initializeAudio();
+                    const volume = parseFloat(e.target.value);
+                    setVolume(type, volume);
+                    
+                    const currentVolumes = {};
+                    soundTypes.forEach(t => {
+                        currentVolumes[t] = parseFloat(document.getElementById(`slider-${t}`).value);
+                    });
+                    updateUI(currentVolumes);
+                });
+            });
+            
+            // Initial UI update
+            updateUI({});
+        });
+
+        playPauseBtn.addEventListener('click', () => {
+            togglePlayback();
+        });
+
+        masterVolumeSlider.addEventListener('input', (e) => {
+            if (masterGainNode) {
+                masterGainNode.gain.setValueAtTime(parseFloat(e.target.value), audioContext.currentTime);
+            }
+        });
+
+        async function togglePlayback() {
+            if (!audioContext) {
+                await initializeAudio();
+            }
+
+            if (isPlaying) {
+                audioContext.suspend();
+                playPauseBtn.innerHTML = '&#9654;';
+                isPlaying = false;
+                if (wakeLock) {
+                    wakeLock.release().then(() => wakeLock = null);
+                }
+            } else {
+                audioContext.resume();
+                playPauseBtn.innerHTML = '&#10074;&#10074;';
+                isPlaying = true;
+                await requestWakeLock();
+            }
+        }
+
+        downloadBtn.addEventListener('click', () => {
+            if (!audioContext) {
+                showMessage("Start playing a sound before downloading!", true);
+                return;
+            }
+
+            showMessage("Recording started. Play the sound you want to record, then click Download again to save.");
+
+            if (!mediaRecorder) {
+                const destination = audioContext.createMediaStreamDestination();
+                masterGainNode.connect(destination);
+                mediaRecorder = new MediaRecorder(destination.stream);
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    recordedChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedChunks, { type: 'audio/wav' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    document.body.appendChild(a);
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = 'shusher-mix.wav';
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    
+                    // Reset recorder for next use
+                    recordedChunks = [];
+                    mediaRecorder = null;
+                    showMessage("Download complete!");
+                };
+                mediaRecorder.start();
+            } else {
+                mediaRecorder.stop();
+            }
+        });
+    </script>
+</body>
+</html>
+
